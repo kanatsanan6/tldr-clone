@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func CreateIfNotExist(dir string) error {
+func CreateDirIfNotExist(dir string) error {
 	_, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -5,35 +5,45 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"github.com/kanatsanan6/tldr/utils"
 )
 
 type Repository struct {
-	dir string
+	remoteUrl string
+	dir       string
 }
 
-func NewRepository(remoteUrl string) (*Repository, error) {
+func NewRepository(remoteUrl string, ttl time.Duration) (*Repository, error) {
 	dir, err := cacheDir()
 	if err != nil {
 		return nil, fmt.Errorf("error while getting cache directory: %s", err)
 	}
-
-	err = utils.CreateIfNotExist(dir)
+	repo := &Repository{remoteUrl: remoteUrl, dir: dir}
+	info, err := os.Stat(dir)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating cache directory: %s", err)
-	}
+		fmt.Println("cache does not exist")
 
-	err = utils.Download(remoteUrl, filepath.Join(dir, "tldr.zip"))
-	if err != nil {
-		return nil, fmt.Errorf("error while downloading cache file: %s", err)
-	}
+		if os.IsNotExist(err) {
+			if err := os.Mkdir(dir, 0755); err != nil {
+				return nil, fmt.Errorf("error while creating cache directory: %s", err)
+			}
+		} else {
+			return nil, fmt.Errorf("error while creating cache directory: %s", err)
+		}
 
-	err = utils.Unzip(filepath.Join(dir, "tldr.zip"), dir)
-	if err != nil {
-		return nil, fmt.Errorf("error while extracting cache file: %s", err)
+		if err := repo.create(); err != nil {
+			return nil, fmt.Errorf("error while downloading the information: %s", err)
+		}
+	} else {
+		fmt.Println("caching directory already exists")
+
+		if info.ModTime().Before(time.Now().Add(-ttl)) {
+			repo.reload()
+		}
 	}
-	return &Repository{dir: dir}, nil
+	return repo, nil
 }
 
 func cacheDir() (string, error) {
@@ -49,4 +59,21 @@ func cacheDir() (string, error) {
 		return "", fmt.Errorf("error while getting current user info: %s", err)
 	}
 	return filepath.Join(user.HomeDir, ".cache", "tldr_clone"), nil
+}
+
+func (r *Repository) create() error {
+	err := utils.Download(r.remoteUrl, filepath.Join(r.dir, "tldr.zip"))
+	if err != nil {
+		return err
+	}
+	err = utils.Unzip(filepath.Join(r.dir, "tldr.zip"), r.dir)
+	return err
+}
+
+func (r *Repository) reload() error {
+	err := os.RemoveAll(r.dir)
+	if err != nil {
+		return err
+	}
+	return r.create()
 }

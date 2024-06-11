@@ -4,14 +4,18 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/kanatsanan6/tldr/cache"
 )
 
-const remoteUrl = "https://tldr.sh/assets/tldr.zip"
+const (
+	remoteUrl = "https://tldr.sh/assets/tldr.zip"
+	ttl       = 24 * time.Hour
+)
 
 func printPage(page string) {
-	_, err := cache.NewRepository(remoteUrl)
+	_, err := cache.NewRepository(remoteUrl, ttl)
 	if err != nil {
 		log.Fatal(err)
 	}
