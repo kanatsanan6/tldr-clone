@@ -23,8 +23,6 @@ func NewRepository(remoteUrl string, ttl time.Duration) (*Repository, error) {
 	repo := &Repository{remoteUrl: remoteUrl, dir: dir}
 	info, err := os.Stat(dir)
 	if err != nil {
-		fmt.Println("cache does not exist")
-
 		if os.IsNotExist(err) {
 			if err := os.Mkdir(dir, 0755); err != nil {
 				return nil, fmt.Errorf("error while creating cache directory: %s", err)
@@ -37,8 +35,6 @@ func NewRepository(remoteUrl string, ttl time.Duration) (*Repository, error) {
 			return nil, fmt.Errorf("error while downloading the information: %s", err)
 		}
 	} else {
-		fmt.Println("caching directory already exists")
-
 		if info.ModTime().Before(time.Now().Add(-ttl)) {
 			repo.reload()
 		}
@@ -59,6 +55,10 @@ func cacheDir() (string, error) {
 		return "", fmt.Errorf("error while getting current user info: %s", err)
 	}
 	return filepath.Join(user.HomeDir, ".cache", "tldr_clone"), nil
+}
+
+func (r *Repository) MarkDown(platform, page string) (*os.File, error) {
+	return os.Open(filepath.Join(r.dir, "pages", platform, page+".md"))
 }
 
 func (r *Repository) create() error {
